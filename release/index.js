@@ -14289,16 +14289,18 @@ var LineChartComponent = /** @class */ (function (_super) {
         });
         if (this.timeline) {
             this.dims.height -= (this.timelineHeight + this.margin[2] + this.timelinePadding);
+            // timeline needs to be updated before getYDomain(true)
+            // because it may use `timelineYDomain` updated value
+            this.updateTimeline();
         }
         this.xDomain = this.getXDomain();
         if (this.filteredDomain) {
             this.xDomain = this.filteredDomain;
         }
-        this.yDomain = this.getYDomain();
+        this.yDomain = this.getYDomain(this.autoZoom);
         this.seriesDomain = this.getSeriesDomain();
         this.xScale = this.getXScale(this.xDomain, this.dims.width);
         this.yScale = this.getYScale(this.yDomain, this.dims.height);
-        this.updateTimeline();
         this.setColors();
         this.legendOptions = this.getLegendOptions();
         this.transform = "translate(" + this.dims.xOffset + " , " + this.margin[0] + ")";
@@ -14309,8 +14311,9 @@ var LineChartComponent = /** @class */ (function (_super) {
         if (this.timeline) {
             this.timelineWidth = this.dims.width;
             this.timelineXDomain = this.getXDomain();
+            this.timelineYDomain = this.getYDomain();
             this.timelineXScale = this.getXScale(this.timelineXDomain, this.timelineWidth);
-            this.timelineYScale = this.getYScale(this.yDomain, this.timelineHeight);
+            this.timelineYScale = this.getYScale(this.timelineYDomain, this.timelineHeight);
             this.timelineTransform = "translate(" + this.dims.xOffset + ", " + -this.margin[2] + ")";
         }
     };
@@ -14354,13 +14357,14 @@ var LineChartComponent = /** @class */ (function (_super) {
         }
         return domain;
     };
-    LineChartComponent.prototype.getYDomain = function () {
+    LineChartComponent.prototype.getYDomain = function (zoom) {
+        if (zoom === void 0) { zoom = false; }
         var domain = [];
         for (var _i = 0, _a = this.results; _i < _a.length; _i++) {
             var results = _a[_i];
             for (var _b = 0, _c = results.series; _b < _c.length; _b++) {
                 var d = _c[_b];
-                if (domain.indexOf(d.value) < 0) {
+                if ((!zoom || this.isInXDomain(d.name)) && domain.indexOf(d.value) < 0) {
                     domain.push(d.value);
                 }
                 if (d.min !== undefined) {
@@ -14376,6 +14380,11 @@ var LineChartComponent = /** @class */ (function (_super) {
                     }
                 }
             }
+        }
+        if (zoom && domain.length < 2) {
+            // when there are no points in currently selected X-range
+            // fallback to a full co-domain
+            return this.timelineYDomain;
         }
         var values = domain.slice();
         if (!this.autoScale) {
@@ -14425,6 +14434,8 @@ var LineChartComponent = /** @class */ (function (_super) {
         this.filteredDomain = domain;
         this.xDomain = this.filteredDomain;
         this.xScale = this.getXScale(this.xDomain, this.dims.width);
+        this.yDomain = this.getYDomain(this.autoZoom);
+        this.yScale = this.getYScale(this.yDomain, this.dims.height);
     };
     LineChartComponent.prototype.updateHoveredVertical = function (item) {
         this.hoveredVertical = item.value;
@@ -14509,6 +14520,14 @@ var LineChartComponent = /** @class */ (function (_super) {
         }
         this.activeEntries = [];
     };
+    LineChartComponent.prototype.isInXDomain = function (name) {
+        if (this.scaleType === 'linear' || this.scaleType === 'time') {
+            return name > this.xDomain[0] && name < this.xDomain[1];
+        }
+        else {
+            return this.xDomain.indexOf(name) >= 0;
+        }
+    };
     __decorate([
         Object(__WEBPACK_IMPORTED_MODULE_0__angular_core__["Input"])(),
         __metadata("design:type", Object)
@@ -14549,6 +14568,10 @@ var LineChartComponent = /** @class */ (function (_super) {
         Object(__WEBPACK_IMPORTED_MODULE_0__angular_core__["Input"])(),
         __metadata("design:type", Object)
     ], LineChartComponent.prototype, "autoScale", void 0);
+    __decorate([
+        Object(__WEBPACK_IMPORTED_MODULE_0__angular_core__["Input"])(),
+        __metadata("design:type", Object)
+    ], LineChartComponent.prototype, "autoZoom", void 0);
     __decorate([
         Object(__WEBPACK_IMPORTED_MODULE_0__angular_core__["Input"])(),
         __metadata("design:type", Object)
